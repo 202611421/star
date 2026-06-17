@@ -102,15 +102,15 @@ try:
         prediction = model.predict(input_df)
         probabilities = model.predict_proba(input_df)
         
-        # 넘파이 최대값을 순수 파이썬 float 숫자로 안전하게 추출
-        max_proba = float(np.max(probabilities)) * 100
+        # 🔥 [완벽 해결]probabilities[0]을 통해 2차원 행렬을 1차원 리스트로 압축하여 스칼라 변환 에러 해결!
+        max_proba = float(np.max(probabilities[0])) * 100
         
         st.markdown("---")
         st.markdown(f"### 🔮 AI 분석 결과")
-        st.info(f"이 별은 **{prediction}형** 항성입니다! (확신도: {max_proba:.2f}%)")
+        st.info(f"이 별은 **{prediction[0]}형** 항성입니다! (확신도: {max_proba:.2f}%)")
         
-        # 확률 테이블 가공
-        prob_values = [float(p) * 100 for p in probabilities]
+        # 확률 테이블 가공 (여기도 1차원 데이터 피드로 안전 고정)
+        prob_values = [float(p) * 100 for p in probabilities[0]]
         prob_df = pd.DataFrame({
             'Spectral Class': model.classes_,
             'Probability (%)': np.round(prob_values, 2)
@@ -123,7 +123,7 @@ try:
     with right_col:
         st.subheader("🌌 실시간 인터랙티브 H-R 도표 (안전 모드 가동)")
         
-        user_label = f"USER STAR ({prediction}형)"
+        user_label = f"USER STAR ({prediction[0]}형)"
         
         user_star = pd.DataFrame([{
             temp_col: temp,
@@ -145,11 +145,11 @@ try:
             title="Hertzsprung-Russell (H-R) Diagram (Real-time Tracking)"
         )
         
-        # 마커 스타일링 강제 지정
-        fig_hr.update_traces(marker=dict(size=12)) 
+        # 마커 스타일링 안전 지정
+        fig_hr.update_traces(marker=dict(size=10)) 
         fig_hr.update_traces(selector=dict(name=user_label), marker=dict(size=24)) 
         
-        # 🔥 [오타 완벽 해결] 'reverse'를 공식 명칭인 'reversed'로 전수 교정!
+        # 오타 및 차원 정비 완료된 역축 정렬
         fig_hr.update_xaxes(autorange="reversed", title_text="Temperature (K) ← 고온 (왼쪽)")
         fig_hr.update_yaxes(autorange="reversed", title_text="Absolute Magnitude (Mv) ← Bright Star (Top)")
         
