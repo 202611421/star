@@ -31,18 +31,23 @@ st.markdown("---")
 # 1. 외부 파일 없이 인터넷 주소(GitHub Raw)에서 데이터를 직접 긁어와 학습
 @st.cache_resource
 def train_model_from_url():
-    # 깃허브에 오픈된 Kaggle Star Dataset의 원본 Raw 주소 연동
+    # 깃허브에 오픈된 YBI Foundation의 Kaggle Star Dataset 원본 Raw 주소
     url = "https://github.com"
     
-    # on_bad_lines='skip' 옵션을 추가하여 데이터가 깨지는 토큰 에러를 원천 차단
+    # 데이터 토큰 깨짐 방지 안전 가동
     df = pd.read_csv(url, on_bad_lines='skip')
     df.columns = df.columns.str.strip()
     
-    # 데이터셋에 맞게 컬럼명 매칭 규칙 지정
+    # 🚨 [완벽 동기화] 외부 데이터셋의 실제 컬럼명과 100% 동일하게 강제 지정
     temp_col = 'Temperature (K)'
+    lum_col = 'Luminosity (L/Lo)'
+    rad_col = 'Radius (R/Ro)'
+    mag_col = 'Absolute magnitude (Mv)'
+    color_col = 'Star color'
     spec_col = 'Spectral Class'
+    type_col = 'Star type'
     
-    # 🪐 과학적 온도 정화 필터 가동
+    # 🪐 유저님과 완성했던 대망의 과학적 온도 정화 필터 가동
     def strict_fix(row):
         t = row[temp_col]
         if t >= 30000: return 'O'
@@ -55,18 +60,18 @@ def train_model_from_url():
     df[spec_col] = df.apply(strict_fix, axis=1)
     
     # 색상 2차 정밀 정제 (공백 및 whitish 처리 완벽 반영)
-    df['Star color'] = df['Star color'].str.lower().str.replace('-', ' ').str.strip()
-    df['Star color'] = df['Star color'].str.replace(r'\s+', ' ', regex=True)
+    df[color_col] = df[color_col].str.lower().str.replace('-', ' ').str.strip()
+    df[color_col] = df[color_col].str.replace(r'\s+', ' ', regex=True)
     strict_color_dict = {
         'blue white': 'blue-white', 'yellowish white': 'yellow-white',
         'yellow white': 'yellow-white', 'white yellow': 'yellow-white',
         'whitish': 'white', 'yellowish': 'yellow',
         'orange red': 'orange-red', 'pale yellow orange': 'orange'
     }
-    df['Star color'] = df['Star color'].replace(strict_color_dict)
+    df[color_col] = df[color_col].replace(strict_color_dict)
     
-    # 훈련셋 분리 및 원-핫 인코딩
-    X = df.drop(['Star type', spec_col], axis=1)
+    # 훈련셋 분리 및 원-핫 인코딩 (불필요한 'Star type' 확실하게 제거)
+    X = df.drop([type_col, spec_col], axis=1)
     y = df[spec_col]
     X = pd.get_dummies(X, drop_first=True)
     train_columns = X.columns.tolist()
@@ -75,10 +80,11 @@ def train_model_from_url():
     gb_model = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, max_depth=3, random_state=42)
     gb_model.fit(X, y)
     
-    return gb_model, train_columns, df, temp_col, spec_col
+    return gb_model, train_columns, df, temp_col, lum_col, rad_col, mag_col, color_col, spec_col
 
 try:
-    model, train_columns, df, temp_col, spec_col = train_model_from_url()
+    # 즉시 학습기 가동 및 모든 컬럼 이름 동기화 바인딩
+    model, train_columns, df, temp_col, lum_col, rad_col, mag_col, color_col, spec_col = train_model_from_url()
     
     # 레이아웃 분할
     left_col, right_col = st.columns([1, 1.3])
@@ -93,22 +99,22 @@ try:
         color_options = ['Yellow', 'Red', 'Blue White', 'White', 'Yellow White', 'Orange', 'Blue', 'Orange Red']
         color = st.selectbox("🎨 항성 색상 선택 (Star Color)", color_options)
         
-        # 실시간 사용자 데이터 가공
+        # 🚨 실시간 사용자 데이터 가공 (여기도 원본 컬럼 이름 변수와 완벽 싱크)
         input_data = pd.DataFrame([{
             temp_col: temp,
-            'Luminosity (L/Lo)': lum,
-            'Radius (R/Ro)': rad,
-            'Absolute magnitude (Mv)': mag,
-            'Star color': color.lower().replace('-', ' ').strip()
+            lum_col: lum,
+            rad_col: rad,
+            mag_col: mag,
+            color_col: color.lower().replace('-', ' ').strip()
         }])
         
-        input_data['Star color'] = input_data['Star color'].replace({
+        input_data[color_col] = input_data[color_col].replace({
             'blue white': 'blue-white', 'yellowish white': 'yellow-white',
             'yellow white': 'yellow-white', 'white yellow': 'yellow-white',
             'whitish': 'white', 'yellowish': 'yellow',
             'orange red': 'orange-red', 'pale yellow orange': 'orange'
         })
-        input_df = pd.get_dummies(input_data, columns=['Star color'])
+        input_df = pd.get_dummies(input_data, columns=[color_col])
         
         for col in train_columns:
             if col not in input_df.columns:
@@ -139,27 +145,27 @@ try:
         # 사용자 입력 별 데이터 행 가공
         user_star = pd.DataFrame([{
             temp_col: temp,
-            'Absolute magnitude(Mv)': mag,
+            mag_col: mag,
             spec_col: f"USER STAR ({prediction}형)",
-            'Luminosity (L/Lo)': lum,
-            'Radius (R/Ro)': rad,
-            'Marker_Size': 30  # 🔥 유저의 야광별 크기는 30으로 지정
+            lum_col: lum,
+            rad_col: rad,
+            'Marker_Size': 30
         }])
         
         # 배경 데이터셋에 크기 컬럼 추가
         df_copy = df.copy()
-        df_copy['Marker_Size'] = 5  # 🔥 배경 별들의 크기는 5로 고정
+        df_copy['Marker_Size'] = 5
         
         # 사용자 입력 별과 배경 데이터를 하나로 병합
         plot_df = pd.concat([user_star, df_copy], ignore_index=True)
         spectral_order = [f"USER STAR ({prediction}형)", 'O', 'B', 'A', 'F', 'G', 'K', 'M']
         
-        # 포맷팅 에러를 방어한 안전한 Plotly 산점도 빌드
+        # Plotly 산점도 빌드
         fig_hr = px.scatter(
-            plot_df, x=temp_col, y='Absolute magnitude(Mv)', color=spec_col,
+            plot_df, x=temp_col, y=mag_col, color=spec_col,
             category_orders={spec_col: spectral_order},
-            size='Marker_Size',                      # 🔥 넘파이 배열 대신 데이터프레임 내 수치 컬럼을 지정하여 에러 완벽 해결!
-            size_max=25,                             # 최대 마커 스케일 고정
+            size='Marker_Size',
+            size_max=25,
             symbol=spec_col,
             symbol_sequence=['star'] + ['circle']*(len(spectral_order)-1),
             color_discrete_map={f"USER STAR ({prediction}형)": "#66FCF1"}, # 네온 형광 야광색 지정
