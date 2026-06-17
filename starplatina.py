@@ -32,15 +32,17 @@ st.markdown("---")
 @st.cache_resource
 def train_model_from_url():
     # 깃허브에 오픈된 Kaggle Star Dataset의 원본 Raw 주소 연동
-    url = "https://github.com"
-    df = pd.read_csv(url)
+    url = "https://github.com/YBIFoundation/Dataset/raw/main/Stars.csv"
+    
+    # 🔥 [수정 포인트] on_bad_lines='skip' 옵션을 추가하여 데이터가 깨지는 토큰 에러를 원천 차단
+    df = pd.read_csv(url, on_bad_lines='skip')
     df.columns = df.columns.str.strip()
     
     # 데이터셋에 맞게 컬럼명 매칭 규칙 지정
     temp_col = 'Temperature (K)'
     spec_col = 'Spectral Class'
     
-    # 🪐 유저님과 함께 완성했던 대망의 과학적 온도 정화 필터 가동
+    # 🪐 과학적 온도 정화 필터 가동
     def strict_fix(row):
         t = row[temp_col]
         if t >= 30000: return 'O'
@@ -146,8 +148,8 @@ try:
         plot_df = pd.concat([user_star, df], ignore_index=True)
         spectral_order = [f"⭐ MY STAR ({prediction}형)", 'O', 'B', 'A', 'F', 'G', 'K', 'M']
         
-        # 🛠️ [문법 오류 수정 완료] 리스트 곱셈 연산 구조 안전하게 정돈
-        star_sizes = [250] + [10] * (len(plot_df) - 1)
+        # 리스트 곱셈 연산 구조 안전하게 정돈
+        star_sizes = [25] + [8]*(len(plot_df)-1)
         
         fig_hr = px.scatter(
             plot_df, x=temp_col, y='Absolute magnitude(Mv)', color=spec_col,
