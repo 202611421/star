@@ -32,9 +32,9 @@ st.markdown("---")
 @st.cache_resource
 def train_model_from_url():
     # 깃허브에 오픈된 Kaggle Star Dataset의 원본 Raw 주소 연동
-    url = "https://github.com/YBIFoundation/Dataset/raw/main/Stars.csv"
+    url = "https://github.com"
     
-    # 🔥 [수정 포인트] on_bad_lines='skip' 옵션을 추가하여 데이터가 깨지는 토큰 에러를 원천 차단
+    # on_bad_lines='skip' 옵션을 추가하여 데이터가 깨지는 토큰 에러를 원천 차단
     df = pd.read_csv(url, on_bad_lines='skip')
     df.columns = df.columns.str.strip()
     
@@ -136,35 +136,39 @@ try:
     with right_col:
         st.subheader("🌌 실시간 인터랙티브 H-R 도표 (배경 데이터 정화 완료)")
         
-        # 사용자 입력 별과 배경 데이터를 합쳐 지도 위에 실시간 표기
+        # 사용자 입력 별 데이터 행 가공
         user_star = pd.DataFrame([{
             temp_col: temp,
-            'Absolute magnitude (Mv)': mag,
-            spec_col: f"⭐ MY STAR ({prediction}형)",
+            'Absolute magnitude(Mv)': mag,
+            spec_col: f"USER STAR ({prediction}형)",
             'Luminosity (L/Lo)': lum,
-            'Radius (R/Ro)': rad
+            'Radius (R/Ro)': rad,
+            'Marker_Size': 30  # 🔥 유저의 야광별 크기는 30으로 지정
         }])
         
-        plot_df = pd.concat([user_star, df], ignore_index=True)
-        spectral_order = [f"⭐ MY STAR ({prediction}형)", 'O', 'B', 'A', 'F', 'G', 'K', 'M']
+        # 배경 데이터셋에 크기 컬럼 추가
+        df_copy = df.copy()
+        df_copy['Marker_Size'] = 5  # 🔥 배경 별들의 크기는 5로 고정
         
-        # 리스트 곱셈 연산 구조 안전하게 정돈
-        star_sizes = [25] + [8]*(len(plot_df)-1)
+        # 사용자 입력 별과 배경 데이터를 하나로 병합
+        plot_df = pd.concat([user_star, df_copy], ignore_index=True)
+        spectral_order = [f"USER STAR ({prediction}형)", 'O', 'B', 'A', 'F', 'G', 'K', 'M']
         
+        # 포맷팅 에러를 방어한 안전한 Plotly 산점도 빌드
         fig_hr = px.scatter(
             plot_df, x=temp_col, y='Absolute magnitude(Mv)', color=spec_col,
             category_orders={spec_col: spectral_order},
-            size=star_sizes, # 내 별만 왕따시만하게 확장
+            size='Marker_Size',                      # 🔥 넘파이 배열 대신 데이터프레임 내 수치 컬럼을 지정하여 에러 완벽 해결!
+            size_max=25,                             # 최대 마커 스케일 고정
             symbol=spec_col,
             symbol_sequence=['star'] + ['circle']*(len(spectral_order)-1),
-            color_discrete_map={f"⭐ MY STAR ({prediction}형)": "#66FCF1"}, # 네온 형광 야광색 지정
-            title="Hertzsprung-Russell (H-R) Diagram (Real-time Tracking)",
-            hover_data=[temp_col, 'Absolute magnitude(Mv)', 'Luminosity (L/Lo)']
+            color_discrete_map={f"USER STAR ({prediction}형)": "#66FCF1"}, # 네온 형광 야광색 지정
+            title="Hertzsprung-Russell (H-R) Diagram (Real-time Tracking)"
         )
         
         # 천문학 공식 규칙 적용 (X축 역전, Y축 역전)
         fig_hr.update_xaxes(autorange="reverse", title_text="Temperature (K) ← 고온 (왼쪽)")
-        fig_hr.update_yaxes(autorange="reverse", title_text="Absolute Magnitude (Mv) ← 밝음 (위쪽)")
+        fig_hr.update_yaxes(autorange="reverse", title_text="Absolute Magnitude (Mv) ← Bright Star (Top)")
         
         fig_hr.update_layout(
             plot_bgcolor='#0B0C10', paper_bgcolor='#1F2833', font_color='#C5C6C7',
