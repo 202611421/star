@@ -101,15 +101,19 @@ try:
         
         prediction = model.predict(input_df)
         probabilities = model.predict_proba(input_df)
-        max_proba = max(probabilities) * 100
+        
+        # 🔥 [치명적 에러 해결 완료] 넘파이 배열에서 순수 파이썬 float 숫자로 강제 래핑하여 포맷팅 오류 차단! [6]
+        max_proba = float(max(probabilities[0])) * 100
         
         st.markdown("---")
         st.markdown(f"### 🔮 AI 분석 결과")
-        st.info(f"이 별은 **{prediction}형** 항성입니다! (확신도: {max_proba:.2f}%)")
+        st.info(f"이 별은 **{prediction[0]}형** 항성입니다! (확신도: {max_proba:.2f}%)")
         
+        # 확률 테이블 가공 및 순수 숫자 타입 고정
+        prob_values = [float(p) * 100 for p in probabilities[0]]
         prob_df = pd.DataFrame({
             'Spectral Class': model.classes_,
-            'Probability (%)': np.round(probabilities * 100, 2)
+            'Probability (%)': np.round(prob_values, 2)
         })
         fig_prob = px.bar(prob_df, x='Spectral Class', y='Probability (%)', 
                           title="분광형별 매칭 확률 분포", color_discrete_sequence=['#45A29E'])
@@ -119,7 +123,7 @@ try:
     with right_col:
         st.subheader("🌌 실시간 인터랙티브 H-R 도표 (안전 모드 가동)")
         
-        user_label = f"USER STAR ({prediction}형)"
+        user_label = f"USER STAR ({prediction[0]}형)"
         
         user_star = pd.DataFrame([{
             temp_col: temp,
@@ -132,7 +136,6 @@ try:
         plot_df = pd.concat([user_star, df], ignore_index=True)
         spectral_order = [user_label, 'O', 'B', 'A', 'F', 'G', 'K', 'M']
         
-        # 🔥 [핵심 수정] size 옵션을 완전히 제거하여 넘파이 포맷팅 에러의 원인을 원천 차단!
         fig_hr = px.scatter(
             plot_df, x=temp_col, y=mag_col, color=spec_col,
             category_orders={spec_col: spectral_order},
@@ -142,10 +145,9 @@ try:
             title="Hertzsprung-Russell (H-R) Diagram (Real-time Tracking)"
         )
         
-        # 🔥 [스타일 강제 주입] 넘파이를 거치지 않고 Plotly 고유 함수로 유저 별(Marker)의 크기만 선택해서 키우기
-        # 첫 번째 그룹인 'USER STAR' 무리만 골라내어 크기를 25로 강제 지정하고, 나머지는 10으로 고정합니다.
-        fig_hr.update_traces(marker=dict(size=10)) # 기본 모든 점 크기 10 고정
-        fig_hr.update_traces(selector=dict(name=user_label), marker=dict(size=22)) # 유저 야광별만 22로 확장
+        # 마커 스타일링 안전 지정
+        fig_hr.update_traces(marker=dict(size=10)) 
+        fig_hr.update_traces(selector=dict(name=user_label), marker=dict(size=22)) 
         
         # 천문학 공식 규칙 적용 (X축 역전, Y축 역전)
         fig_hr.update_xaxes(autorange="reverse", title_text="Temperature (K) ← 고온 (왼쪽)")
