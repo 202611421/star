@@ -38,16 +38,20 @@ def train_model_from_url():
     df = pd.read_csv(url, on_bad_lines='skip')
     df.columns = df.columns.str.strip()
     
-    # 🚨 [완벽 동기화] 외부 데이터셋의 실제 컬럼명과 100% 동일하게 강제 지정
-    temp_col = 'Temperature (K)'
-    lum_col = 'Luminosity (L/Lo)'
-    rad_col = 'Radius (R/Ro)'
-    mag_col = 'Absolute magnitude (Mv)'
-    color_col = 'Star color'
-    spec_col = 'Spectral Class'
-    type_col = 'Star type'
+    # 🚨 [완벽 수정] 유저님이 알려주신 실제 원본 데이터셋의 컬럼 순서 그대로 정확하게 강제 맵핑!
+    # 순서: 1:온도, 2:광도, 3:반지름, 4:절대등급, 5:스타타입, 6:색상, 7:분광형
+    df.columns = ['Temperature', 'Luminosity', 'Radius', 'Absolute_Magnitude', 'Star_Type', 'Star_Color', 'Spectral_Class']
     
-    # 🪐 유저님과 완성했던 대망의 과학적 온도 정화 필터 가동
+    # 내부 표준 변수 바인딩
+    temp_col = 'Temperature'
+    lum_col = 'Luminosity'
+    rad_col = 'Radius'
+    mag_col = 'Absolute_Magnitude'
+    type_col = 'Star_Type'
+    color_col = 'Star_Color'
+    spec_col = 'Spectral_Class'
+    
+    # 🪐 유저님과 함께 완성했던 대망의 과학적 온도 정화 필터 가동
     def strict_fix(row):
         t = row[temp_col]
         if t >= 30000: return 'O'
@@ -70,7 +74,7 @@ def train_model_from_url():
     }
     df[color_col] = df[color_col].replace(strict_color_dict)
     
-    # 훈련셋 분리 및 원-핫 인코딩 (불필요한 'Star type' 확실하게 제거)
+    # 훈련셋 분리 및 원-핫 인코딩
     X = df.drop([type_col, spec_col], axis=1)
     y = df[spec_col]
     X = pd.get_dummies(X, drop_first=True)
@@ -99,7 +103,7 @@ try:
         color_options = ['Yellow', 'Red', 'Blue White', 'White', 'Yellow White', 'Orange', 'Blue', 'Orange Red']
         color = st.selectbox("🎨 항성 색상 선택 (Star Color)", color_options)
         
-        # 🚨 실시간 사용자 데이터 가공 (여기도 원본 컬럼 이름 변수와 완벽 싱크)
+        # 실시간 사용자 데이터 가공
         input_data = pd.DataFrame([{
             temp_col: temp,
             lum_col: lum,
@@ -169,7 +173,7 @@ try:
             symbol=spec_col,
             symbol_sequence=['star'] + ['circle']*(len(spectral_order)-1),
             color_discrete_map={f"USER STAR ({prediction}형)": "#66FCF1"}, # 네온 형광 야광색 지정
-            title="Hertzsprung-Russell (H-R) Diagram (Real-time Tracking)"
+            title="Hertzsprung-Russell (H-R) Diagram"
         )
         
         # 천문학 공식 규칙 적용 (X축 역전, Y축 역전)
