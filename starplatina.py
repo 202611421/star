@@ -11,6 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
+# 사이버 펑크 감성의 커스텀 CSS 주입 (칠흑 같은 우주 테마)
 st.markdown("""
     <style>
     .main { background-color: #0B0C10; color: #C5C6C7; }
@@ -27,11 +28,9 @@ st.title("🌌 STAR PLATINA : 항성 분석 및 H-R 도표 시스템")
 st.write("우주 공간의 항성 데이터를 실시간 분석하고 헤르츠스프룽-러셀(H-R) 도표 위의 위치를 시각화합니다.")
 st.markdown("---")
 
-# 1. 🔥 외부 파일/링크 스트레스 없이 코드 내부 자체 데이터로 즉석 학습 가동
+# 1. 외부 파일/링크 스트레스 없이 코드 내부 자체 데이터로 즉석 학습 가동
 @st.cache_resource
 def train_model_safely():
-    # Kaggle Star Dataset의 물리 법칙 경향성을 완벽하게 대변하는 정밀 핵심 베이스라인 데이터 직접 주입
-    # 이 데이터셋을 바탕으로 AI 모델이 작동하고 배경 H-R 도표가 그려집니다.
     raw_data = [
         [3068, 0.0024, 0.17, 16.12, 'Red', 'M'], [3453, 0.0006, 0.11, 16.89, 'Red', 'M'],
         [2983, 0.0004, 0.09, 17.55, 'Red', 'M'], [2900, 0.0003, 0.08, 18.23, 'Red', 'M'],
@@ -39,7 +38,6 @@ def train_model_safely():
         [7500, 5.0000, 1.50, 2.50, 'White', 'A'], [9500, 25.0000, 2.00, 1.20, 'White', 'A'],
         [12000, 120.00, 4.00, -1.50, 'Blue White', 'B'], [25000, 15000.0, 8.00, -4.50, 'Blue', 'B'],
         [35000, 100000.0, 12.0, -6.00, 'Blue', 'O'], [40000, 200000.0, 15.0, -7.20, 'Blue', 'O'],
-        # 거성 및 왜성 무리의 H-R도 분포 밸런스를 잡기 위한 천문학 앵커 데이터셋 추가
         [3200, 0.001, 0.14, 15.2, 'Red', 'M'], [3600, 0.003, 0.22, 14.1, 'Red', 'M'],
         [8000, 20.0, 1.8, 1.6, 'White', 'A'], [11000, 80.0, 3.1, -0.2, 'Blue White', 'B'],
         [15000, 500.0, 4.5, -2.1, 'Blue White', 'B'], [22000, 5000.0, 6.2, -3.8, 'Blue', 'B'],
@@ -48,10 +46,8 @@ def train_model_safely():
         [4000, 10000.0, 250.0, -5.2, 'Orange', 'K'], [4500, 15000.0, 380.0, -5.8, 'Orange', 'K']
     ]
     
-    # 데이터프레임 빌드 (깨끗하게 청소된 이름 적용)
     df = pd.DataFrame(raw_data, columns=['Temperature', 'Luminosity', 'Radius', 'Absolute_Magnitude', 'Star_Color', 'Spectral_Class'])
     
-    # 우리가 원했던 내부 표준 변수 명명
     temp_col = 'Temperature'
     lum_col = 'Luminosity'
     rad_col = 'Radius'
@@ -59,23 +55,19 @@ def train_model_safely():
     color_col = 'Star_Color'
     spec_col = 'Spectral_Class'
     
-    # 색상 텍스트 정제 표준화
     df[color_col] = df[color_col].str.lower().str.replace('-', ' ').str.strip()
     
-    # 훈련셋 분리 및 원-핫 인코딩
     X = df.drop([spec_col], axis=1)
     y = df[spec_col]
     X = pd.get_dummies(X, drop_first=True)
     train_columns = X.columns.tolist()
     
-    # 그라디언트 부스팅 실시간 학습 (데이터가 가볍고 깨끗하여 0.001초 소요)
     gb_model = GradientBoostingClassifier(n_estimators=50, learning_rate=0.1, max_depth=3, random_state=42)
     gb_model.fit(X, y)
     
     return gb_model, train_columns, df, temp_col, lum_col, rad_col, mag_col, color_col, spec_col
 
 try:
-    # 안전 가동 엔진 시작
     model, train_columns, df, temp_col, lum_col, rad_col, mag_col, color_col, spec_col = train_model_safely()
     
     # 레이아웃 분할
@@ -107,7 +99,6 @@ try:
                 input_df[col] = 0
         input_df = input_df[train_columns]
         
-        # AI 예측 및 결과 도출
         prediction = model.predict(input_df)
         probabilities = model.predict_proba(input_df)
         max_proba = max(probabilities) * 100
@@ -128,37 +119,35 @@ try:
     with right_col:
         st.subheader("🌌 실시간 인터랙티브 H-R 도표 (안전 모드 가동)")
         
-        # 사용자 입력 별 데이터 행 가공
+        user_label = f"USER STAR ({prediction}형)"
+        
         user_star = pd.DataFrame([{
             temp_col: temp,
             mag_col: mag,
-            spec_col: f"USER STAR ({prediction}형)",
+            spec_col: user_label,
             lum_col: lum,
-            rad_col: rad,
-            'Marker_Size': 30
+            rad_col: rad
         }])
         
-        # 배경 데이터셋 복사 및 크기 설정
-        df_copy = df.copy()
-        df_copy['Marker_Size'] = 7
+        plot_df = pd.concat([user_star, df], ignore_index=True)
+        spectral_order = [user_label, 'O', 'B', 'A', 'F', 'G', 'K', 'M']
         
-        # 결합 및 천문학 순서 정의
-        plot_df = pd.concat([user_star, df_copy], ignore_index=True)
-        spectral_order = [f"USER STAR ({prediction}형)", 'O', 'B', 'A', 'F', 'G', 'K', 'M']
-        
-        # 에러 없는 Plotly 산점도 빌드
+        # 🔥 [핵심 수정] size 옵션을 완전히 제거하여 넘파이 포맷팅 에러의 원인을 원천 차단!
         fig_hr = px.scatter(
             plot_df, x=temp_col, y=mag_col, color=spec_col,
             category_orders={spec_col: spectral_order},
-            size='Marker_Size',
-            size_max=25,
             symbol=spec_col,
             symbol_sequence=['star'] + ['circle']*(len(spectral_order)-1),
-            color_discrete_map={f"USER STAR ({prediction}형)": "#66FCF1"}, 
+            color_discrete_map={user_label: "#66FCF1"}, 
             title="Hertzsprung-Russell (H-R) Diagram (Real-time Tracking)"
         )
         
-        # 천문학 역전 법칙 고정
+        # 🔥 [스타일 강제 주입] 넘파이를 거치지 않고 Plotly 고유 함수로 유저 별(Marker)의 크기만 선택해서 키우기
+        # 첫 번째 그룹인 'USER STAR' 무리만 골라내어 크기를 25로 강제 지정하고, 나머지는 10으로 고정합니다.
+        fig_hr.update_traces(marker=dict(size=10)) # 기본 모든 점 크기 10 고정
+        fig_hr.update_traces(selector=dict(name=user_label), marker=dict(size=22)) # 유저 야광별만 22로 확장
+        
+        # 천문학 공식 규칙 적용 (X축 역전, Y축 역전)
         fig_hr.update_xaxes(autorange="reverse", title_text="Temperature (K) ← 고온 (왼쪽)")
         fig_hr.update_yaxes(autorange="reverse", title_text="Absolute Magnitude (Mv) ← Bright Star (Top)")
         
